@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // User Rules
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'email', 'role']) &&
+               data.uid is string && data.email is string &&
+               data.role in ['admin', 'manager', 'member'];
+      }
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().uid == userId;
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().uid == existing().uid &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'xp', 'badges', 'streak']);
+    }
+
+    // Project Rules
+    match /projects/{projectId} {
+      function isValidProject(data) {
+        return data.keys().hasAll(['name', 'ownerId', 'status']) &&
+               data.name is string && data.name.size() <= 100 &&
+               data.ownerId is string && data.status in ['active', 'archived', 'completed'];
+      }
+      function isMember(projectId) {
+        return isSignedIn() && (
+          isOwner(get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId) ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.members
+        );
+      }
+      
+      allow read: if isSignedIn() && (isOwner(existing().ownerId) || request.auth.uid in existing().members);
+      allow create: if isVerified() && isValidProject(incoming()) && isOwner(incoming().ownerId);
+      allow update: if isVerified() && isOwner(existing().ownerId) && isValidProject(incoming()) &&
+                    incoming().ownerId == existing().ownerId &&
+                    incoming().diff(existing()).affectedKeys().hasAny(['name', 'description', 'status', 'members', 'updatedAt']);
+      allow delete: if isVerified() && isOwner(existing().ownerId);
+
+      // Task Rules (Subcollection)
+      match /tasks/{taskId} {
+        function isValidTask(data) {
+          return data.keys().hasAll(['projectId', 'title', 'status', 'priority']) &&
+                 data.projectId == projectId &&
+                 data.title is string && data.title.size() <= 200 &&
+                 data.status in ['todo', 'in_progress', 'review', 'completed'] &&
+                 data.priority in ['low', 'medium', 'high', 'urgent'];
+        }
+        allow read: if isMember(projectId);
+        allow create: if isMember(projectId) && isValidTask(incoming());
+        allow update: if isMember(projectId) && isValidTask(incoming()) &&
+                      incoming().projectId == existing().projectId &&
+                      incoming().diff(existing()).affectedKeys().hasAny(['title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'labels', 'sequence', 'updatedAt']);
+        allow delete: if isMember(projectId);
+
+        // Comment Rules
+        match /comments/{commentId} {
+          function isValidComment(data) {
+            return data.keys().hasAll(['taskId', 'authorId', 'content']) &&
+                   data.taskId == taskId && data.authorId == request.auth.uid &&
+                   data.content is string && data.content.size() <= 2000;
+          }
+          allow read: if isMember(projectId);
+          allow create: if isMember(projectId) && isValidComment(incoming());
+          allow delete: if isMember(projectId) && isOwner(existing().authorId);
+        }
+      }
+    }
+  }
+}
