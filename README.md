@@ -1,16 +1,32 @@
+SyncSphere Protocol
+ A high-performance workspace designed for elite engineering teams. SyncSphere provides a unified interface for operational tracking, real-time synchronization, and precision metrics.
 
+CORE ARCHITECTURE
+ Operational Streams: High-frequency task updates with zero-latency synchronization.
+ Precision Metrics: Real-time analytics on team velocity, resource distribution, and system integrity.
+ Enterprise Security: Military-grade encryption with granular role-based access control (RBAC).
+ Smart Kanban: Adaptive task streams optimized for rapid development cycles.
+ 
+ TECH STACK
+ Frontend: React 18, Vite, Tailwind CSS, Framer Motion
+ Backend: Express (Node.js)
+ Data Layer: Firebase Firestore (Real-time DB)
+ Security: Firebase Authentication
+ Visualization: Recharts & D3.js
 
-This contains everything you need to run your app locally.
+GETTING STARTED
+ Prerequisites
+ Node.js 18+
+ npm or yarn
 
-View your app :  https://ais-pre-vizwl4gafm53venvbvxncn-104343693179.asia-east1.run.app/
+Installation
+ Clone the repository: git clone <your-repo-url>
+ Install dependencies: npm install
+ Configure environment: Create a .env file based on .env.example
+Run development: npm run dev
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+PROJECT STRUCTURE
+ /src/pages: Functional modules (Dashboard, Projects, Analytics).
+ /src/components: UI components and layouts.
+ /src/lib: Service initializers (Firebase, Global Utils).
+ server.ts: Production server entry point.
